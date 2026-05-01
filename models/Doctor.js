@@ -3,8 +3,11 @@ const mongoose = require('mongoose');
 const doctorSchema = new mongoose.Schema({
     name: { type: String, required: true },
     specialty: { type: String, required: true },
-    experience: { type: String, required: true },
-    photo: { type: String, default: 'default-photo.jpg' }
+    experience: { type: String, default: '' },
+    image: { type: String, default: '' },
+    description: { type: String, default: '' },
+    education: { type: String, default: '' },
+    achievements: { type: [String], default: [] }
 }, {
     timestamps: true 
 });
