@@ -8,12 +8,16 @@ import { fileURLToPath } from "url";
 import app from "./app";
 import { createServer as createViteServer } from "vite";
 import authRoutes from "./routes/auth";
-import doctorRoutes from "./routes/doctor";
-import serviceRoutes from "./routes/service";
-import userRoutes from "./routes/users";
+import doctorRoutes from "./routes/doctors";
+import serviceRoutes from "./routes/services";
 import bookingRoutes from "./routes/bookings";
 import articleRoutes from "./routes/articles";
+import reviewRoutes from "./routes/reviews";
+import medicalRecordRoutes from "./routes/medicalRecords";
+import medicalRoutes from "./routes/medical";
 import doctorDashboardRoutes from "./routes/doctorDashboard";
+import urgentRequestRoutes from "./routes/urgentRequests";
+import userRoutes from "./routes/users";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,10 +38,14 @@ async function startServer() {
   app.use("/api/auth", authRoutes);
   app.use("/api/doctors", doctorRoutes);
   app.use("/api/services", serviceRoutes);
-  app.use("/api/users", userRoutes);
   app.use("/api/bookings", bookingRoutes);
   app.use("/api/articles", articleRoutes);
+  app.use("/api/reviews", reviewRoutes);
+  app.use("/api/medical-records", medicalRecordRoutes);
+  app.use("/api/medical", medicalRoutes);
   app.use("/api/doctor", doctorDashboardRoutes);
+  app.use("/api/urgent-requests", urgentRequestRoutes);
+  app.use("/api/users", userRoutes);
   
 
 
