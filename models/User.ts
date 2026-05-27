@@ -64,4 +64,4 @@ const UserSchema = new mongoose.Schema({
 // next();
 // });
 
-export const User = mongoose.models.User || mongoose.model('User', UserSchema);
+export const User = (mongoose.models.User || mongoose.model('User', UserSchema)) as any;

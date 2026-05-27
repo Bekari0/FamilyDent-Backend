@@ -18,7 +18,6 @@ const BookingSchema = new mongoose.Schema({
  }
 });
 
-// Auto-increment bookingNumber
 BookingSchema.pre('save', async function() {
  if (this.isNew) {
  const lastBooking = await (this.constructor as any).findOne({}, {}, { sort: { 'bookingNumber': -1 } });
@@ -26,4 +25,4 @@ BookingSchema.pre('save', async function() {
  }
 });
 
-export const Booking = mongoose.models.Booking || mongoose.model('Booking', BookingSchema);
+export const Booking = (mongoose.models.Booking || mongoose.model('Booking', BookingSchema)) as any;

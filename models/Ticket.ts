@@ -30,6 +30,7 @@ const TicketSchema = new mongoose.Schema({
  operatorJoinedAt: Date,
  closedAt: Date,
  closedBy: String,
+ resolution: String,
  
  createdAt: { type: Date, default: Date.now },
  lastActivity: { type: Date, default: Date.now }
@@ -38,4 +39,4 @@ const TicketSchema = new mongoose.Schema({
 TicketSchema.index({ status: 1, createdAt: -1 });
 TicketSchema.index({ patientId: 1 });
 
-export const Ticket = mongoose.models.Ticket || mongoose.model('Ticket', TicketSchema);
+export const Ticket = (mongoose.models.Ticket || mongoose.model('Ticket', TicketSchema)) as any;

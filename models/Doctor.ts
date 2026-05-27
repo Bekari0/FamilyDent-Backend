@@ -21,4 +21,4 @@ const DoctorSchema = new mongoose.Schema({
  }
 });
 
-export const Doctor = mongoose.models.Doctor || mongoose.model('Doctor', DoctorSchema);
+export const Doctor = (mongoose.models.Doctor || mongoose.model('Doctor', DoctorSchema)) as any;
