@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Service } from '../models/Service';
+import { Service } from '../models/Service.ts';
 
 const router = Router();
 

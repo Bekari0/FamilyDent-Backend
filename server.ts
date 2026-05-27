@@ -1,14 +1,16 @@
 import dotenv from "dotenv";
-dotenv.config({ path: "../.env" });
+dotenv.config({ path: ".env" });
 
 import express from "express";
-import { connectDB } from "./config/db";
+import { connectDB } from "./config/db.ts";
 import path from "path";
 import { fileURLToPath } from "url";
-import app from "./app.ts";;
+import app from "./app.ts";
 import { createServer as createViteServer } from "vite";
-import doctorRoutes from "./routes/doctor";
-import serviceRoutes from "./routes/service";
+import authRoutes from "./routes/auth.ts";
+import doctorRoutes from "./routes/doctor.ts";
+import serviceRoutes from "./routes/service.ts";
+import userRoutes from "./routes/users.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,11 +28,13 @@ async function startServer() {
   }
 
   console.log("Configuring API routes...");
+  app.use("/api/auth", authRoutes);
   app.use("/api/doctors", doctorRoutes);
   app.use("/api/services", serviceRoutes);
+  app.use("/api/users", userRoutes);
 
 
-  app.use("/api/*", (req, res) => {
+  app.use(/^\/api\//, (req, res) => {
     console.warn(`API 404: ${req.method} ${req.originalUrl}`);
     res.status(404).json({ error: `Route ${req.originalUrl} not found` });
   });
@@ -49,10 +53,11 @@ async function startServer() {
         server: { middlewareMode: true },
         appType: "spa",
         root: rootPath,
+        cacheDir: path.join(__dirname, "node_modules", ".vite"),
       });
       app.use(vite.middlewares);
 
-      app.use("*", (req, res) => {
+      app.use(/.*/, (req, res) => {
         const indexPath = path.join(__dirname, "..", "index.html");
         console.log("Serving index.html from:", indexPath);
         res.sendFile(indexPath);
@@ -66,7 +71,7 @@ async function startServer() {
     console.log("Detected production mode. Serving static files...");
     const distPath = path.join(__dirname, "..", "dist");
     app.use(express.static(distPath));
-    app.get("*", (req: any, res: any) => {
+    app.get(/.*/, (req: any, res: any) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
@@ -77,3 +82,5 @@ async function startServer() {
     console.log(`>>> Server running on http://localhost:${PORT}`);
   });
 }
+
+startServer();

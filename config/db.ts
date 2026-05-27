@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { User as UserModel } from '../models/User';
+import { User as UserModel } from '../models/User.ts';
 
 const User = UserModel as any;
 

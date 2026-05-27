@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Doctor as DoctorModel } from '../models/Doctor';
+import { Doctor as DoctorModel } from '../models/Doctor.ts';
 const Doctor = DoctorModel as any;
 
 const router = Router();
