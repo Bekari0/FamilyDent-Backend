@@ -15,6 +15,7 @@ import articleRoutes from "./routes/articles";
 import reviewRoutes from "./routes/reviews";
 import medicalRecordRoutes from "./routes/medicalRecords";
 import medicalRoutes from "./routes/medical";
+import adminRoutes from "./routes/admin";
 import doctorDashboardRoutes from "./routes/doctorDashboard";
 import urgentRequestRoutes from "./routes/urgentRequests";
 import userRoutes from "./routes/users";
@@ -43,6 +44,7 @@ async function startServer() {
   app.use("/api/reviews", reviewRoutes);
   app.use("/api/medical-records", medicalRecordRoutes);
   app.use("/api/medical", medicalRoutes);
+  app.use("/api/admin", adminRoutes);
   app.use("/api/doctor", doctorDashboardRoutes);
   app.use("/api/urgent-requests", urgentRequestRoutes);
   app.use("/api/users", userRoutes);
