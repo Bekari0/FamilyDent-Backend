@@ -2,15 +2,18 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env" });
 
 import express from "express";
-import { connectDB } from "./config/db.ts";
+import { connectDB } from "./config/db";
 import path from "path";
 import { fileURLToPath } from "url";
-import app from "./app.ts";
+import app from "./app";
 import { createServer as createViteServer } from "vite";
-import authRoutes from "./routes/auth.ts";
-import doctorRoutes from "./routes/doctor.ts";
-import serviceRoutes from "./routes/service.ts";
-import userRoutes from "./routes/users.ts";
+import authRoutes from "./routes/auth";
+import doctorRoutes from "./routes/doctor";
+import serviceRoutes from "./routes/service";
+import userRoutes from "./routes/users";
+import bookingRoutes from "./routes/bookings";
+import articleRoutes from "./routes/articles";
+import doctorDashboardRoutes from "./routes/doctorDashboard";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,6 +35,10 @@ async function startServer() {
   app.use("/api/doctors", doctorRoutes);
   app.use("/api/services", serviceRoutes);
   app.use("/api/users", userRoutes);
+  app.use("/api/bookings", bookingRoutes);
+  app.use("/api/articles", articleRoutes);
+  app.use("/api/doctor", doctorDashboardRoutes);
+  
 
 
   app.use(/^\/api\//, (req, res) => {
