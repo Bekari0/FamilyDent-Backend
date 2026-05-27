@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Панель оператора — FamilyDent</title>
+    <link rel="stylesheet" href="operator-panel.css" />
+  </head>
+  <body>
+    <div class="login-container" id="loginContainer">
+      <div class="login-box">
+        <div class="brand">
+          <div class="brand-logo"></div>
+          <div>
+            <div class="brand-title">FamilyDent</div>
+            <div class="brand-subtitle">
+              Панель оператора обращений пациентов
+            </div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="operatorName">Имя оператора</label>
+          <input
+            class="input"
+            type="text"
+            id="operatorName"
+            placeholder="Например: Администратор"
+            autocomplete="name"
+            required
+          />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="operatorToken">Секретный ключ</label>
+          <input
+            class="input"
+            type="password"
+            id="operatorToken"
+            placeholder="Введите ключ доступа"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+
+        <div class="login-hint">
+          Используйте рабочий ключ доступа. После входа вы сможете принимать
+          обращения, отвечать пациентам и закрывать тикеты.
+        </div>
+
+        <button class="btn btn-primary" id="loginButton" onclick="login()">
+          Войти в панель
+        </button>
+      </div>
+    </div>
+
+    <div class="app-container" id="appContainer">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-topline">
+            <div>
+              <div class="sidebar-title">Активные обращения</div>
+              <div class="operators-count" id="operatorsCount">
+                Операторов онлайн: —
+              </div>
+            </div>
+            <div class="online-pill">
+              <span class="online-dot"></span> Онлайн
+            </div>
+          </div>
+
+          <div class="search-wrap">
+            <span class="search-icon"></span>
+            <input
+              class="ticket-search"
+              id="ticketSearch"
+              type="text"
+              placeholder="Поиск по тикету или пациенту..."
+              oninput="renderTickets()"
+            />
+          </div>
+        </div>
+
+        <div class="tickets-meta">
+          <div class="meta-card">
+            <div class="meta-value" id="statTotal">0</div>
+            <div class="meta-label">Всего</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-value" id="statNew">0</div>
+            <div class="meta-label">Новые</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-value" id="statProgress">0</div>
+            <div class="meta-label">В работе</div>
+          </div>
+        </div>
+
+        <div class="tickets-list" id="ticketsList">
+          <div class="empty-state">
+            <div class="empty-card">
+              <div class="empty-icon">⏳</div>
+              <div class="empty-title">Загрузка обращений</div>
+              <div>Подключаемся к серверу и получаем список тикетов.</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="chat-area">
+        <div class="chat-header" id="chatHeader">
+          <div class="chat-title">
+            <div class="chat-avatar"></div>
+            <div>
+              <h3>Выберите обращение</h3>
+              <div class="chat-subtitle">
+                Откройте тикет из списка слева, чтобы начать работу
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+          <div class="empty-state">
+            <div class="empty-card">
+              <div class="empty-icon"></div>
+              <div class="empty-title">Тикет не выбран</div>
+              <div>
+                Выберите обращение пациента из списка слева. Здесь появится
+                история переписки.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <div class="input-shell">
+            <textarea
+              class="textarea"
+              id="messageInput"
+              placeholder="Введите ответ пациенту..."
+              rows="2"
+              disabled
+            ></textarea>
+            <div class="input-help">
+              <span>Ctrl + Enter — отправить</span>
+              <span id="inputCounter">0 символов</span>
+            </div>
+          </div>
+          <button
+            class="btn btn-send"
+            id="sendButton"
+            onclick="sendMessage()"
+            disabled
+          >
+            Отправить
+          </button>
+          <button
+            class="btn btn-danger"
+            id="closeTicketButton"
+            onclick="closeTicket()"
+            disabled
+          >
+            Закрыть
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      let socket;
+      let currentTicket = null;
+      let operatorName = "";
+      let ticketsCache = [];
+      let toastTimer = null;
+
+      const loginContainer = document.getElementById("loginContainer");
+      const appContainer = document.getElementById("appContainer");
+      const ticketsList = document.getElementById("ticketsList");
+      const chatHeader = document.getElementById("chatHeader");
+      const chatMessages = document.getElementById("chatMessages");
+      const messageInput = document.getElementById("messageInput");
+      const sendButton = document.getElementById("sendButton");
+      const closeTicketButton = document.getElementById("closeTicketButton");
+      const inputCounter = document.getElementById("inputCounter");
+
+      document
+        .getElementById("operatorName")
+        .addEventListener("keydown", handleLoginEnter);
+      document
+        .getElementById("operatorToken")
+        .addEventListener("keydown", handleLoginEnter);
+
+      messageInput.addEventListener("input", () => {
+        inputCounter.textContent = `${messageInput.value.length} символов`;
+        autoResizeTextarea(messageInput);
+      });
+
+      messageInput.addEventListener("keydown", (event) => {
+        if (event.ctrlKey && event.key === "Enter") {
+          event.preventDefault();
+          sendMessage();
+        }
+      });
+
+      function handleLoginEnter(event) {
+        if (event.key === "Enter") {
+          login();
+        }
+      }
+
+      function escapeHTML(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function showToast(message, type = "") {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.className = `toast show ${type}`;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toast.className = "toast";
+        }, 3200);
+      }
+
+      function autoResizeTextarea(textarea) {
+        textarea.style.height = "auto";
+        textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+      }
+
+      function formatDate(value) {
+        if (!value) return "—";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "—";
+        return date.toLocaleString("ru-RU", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      function formatTime(value) {
+        if (!value) return "—";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "—";
+        return date.toLocaleTimeString("ru-RU", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      function getStatusMeta(status) {
+        if (status === "in_progress") {
+          return { className: "status-progress", text: "В работе", icon: "" };
+        }
+
+        if (status === "closed") {
+          return { className: "status-closed", text: "Закрыт", icon: "" };
+        }
+
+        return { className: "status-new", text: "Новый", icon: "" };
+      }
+
+      function setChatEnabled(enabled) {
+        messageInput.disabled = !enabled;
+        sendButton.disabled = !enabled;
+        closeTicketButton.disabled = !enabled;
+      }
+
+      function login() {
+        const name = document.getElementById("operatorName").value.trim();
+        const token = document.getElementById("operatorToken").value.trim();
+        const loginButton = document.getElementById("loginButton");
+
+        if (!name || !token) {
+          showToast("Введите имя оператора и секретный ключ.", "error");
+          return;
+        }
+
+        operatorName = name;
+        loginButton.disabled = true;
+        loginButton.textContent = "Подключение...";
+
+        socket = io();
+
+        socket.on("connect", () => {
+          socket.emit("operator_auth", { token, name });
+        });
+
+        socket.on("disconnect", () => {
+          showToast(
+            "Соединение с сервером потеряно. Пытаемся переподключиться...",
+            "error",
+          );
+        });
+
+        socket.on("connect_error", () => {
+          loginButton.disabled = false;
+          loginButton.textContent = "Войти в панель";
+          showToast("Не удалось подключиться к серверу.", "error");
+        });
+
+        socket.on("auth_success", () => {
+          loginContainer.style.display = "none";
+          appContainer.style.display = "flex";
+          showToast(`Добро пожаловать, ${name}!`, "success");
+          loadTickets();
+        });
+
+        socket.on("auth_error", (data) => {
+          loginButton.disabled = false;
+          loginButton.textContent = "Войти в панель";
+          showToast(
+            `Ошибка авторизации: ${data?.message || "проверьте ключ доступа"}`,
+            "error",
+          );
+        });
+
+        socket.on("tickets_list", (tickets) => {
+          ticketsCache = Array.isArray(tickets) ? tickets : [];
+          renderTickets();
+        });
+
+        socket.on("new_ticket", () => {
+          showToast("Поступило новое обращение пациента.", "success");
+          loadTickets();
+        });
+
+        socket.on("ticket_history", (messages) => {
+          displayMessages(messages);
+        });
+
+        socket.on("new_message", (message) => {
+          addMessage(message);
+          loadTickets();
+        });
+
+        socket.on("ticket_updated", (data) => {
+          loadTickets();
+          if (currentTicket === data.ticketId) {
+            renderChatHeader(
+              data.ticketId,
+              data.operator || operatorName,
+              data.status || "in_progress",
+            );
+          }
+        });
+
+        socket.on("ticket_closed", (data) => {
+          loadTickets();
+          if (currentTicket === data.ticketId) {
+            currentTicket = null;
+            setChatEnabled(false);
+            chatHeader.innerHTML = `
+ <div class="chat-title">
+ <div class="chat-avatar"></div>
+ <div>
+ <h3>Тикет закрыт</h3>
+ <div class="chat-subtitle">Выберите другое обращение для работы</div>
+ </div>
+ </div>
+ `;
+            chatMessages.innerHTML = `
+ <div class="empty-state">
+ <div class="empty-card">
+ <div class="empty-icon"></div>
+ <div class="empty-title">Обращение закрыто</div>
+ <div>История сохранена. Можно перейти к следующему пациенту.</div>
+ </div>
+ </div>
+ `;
+          }
+        });
+
+        socket.on("operators_count", (count) => {
+          document.getElementById("operatorsCount").textContent =
+            `Операторов онлайн: ${count}`;
+        });
+      }
+
+      function loadTickets() {
+        if (socket && socket.connected) {
+          socket.emit("refresh_tickets");
+        }
+      }
+
+      function updateStats(tickets) {
+        document.getElementById("statTotal").textContent = tickets.length;
+        document.getElementById("statNew").textContent = tickets.filter(
+          (ticket) => ticket.status === "new" || !ticket.status,
+        ).length;
+        document.getElementById("statProgress").textContent = tickets.filter(
+          (ticket) => ticket.status === "in_progress",
+        ).length;
+      }
+
+      function renderTickets() {
+        const query =
+          document
+            .getElementById("ticketSearch")
+            ?.value?.trim()
+            .toLowerCase() || "";
+        const filteredTickets = ticketsCache.filter((ticket) => {
+          const haystack = [ticket.ticketId, ticket.patientName, ticket.status]
+            .map((item) => String(item || "").toLowerCase())
+            .join(" ");
+          return haystack.includes(query);
+        });
+
+        updateStats(ticketsCache);
+
+        if (!ticketsCache.length) {
+          ticketsList.innerHTML = `
+ <div class="empty-state">
+ <div class="empty-card">
+ <div class="empty-icon"></div>
+ <div class="empty-title">Нет активных обращений</div>
+ <div>Когда пациент напишет в чат, новый тикет появится здесь.</div>
+ </div>
+ </div>
+ `;
+          return;
+        }
+
+        if (!filteredTickets.length) {
+          ticketsList.innerHTML = `
+ <div class="empty-state">
+ <div class="empty-card">
+ <div class="empty-icon"></div>
+ <div class="empty-title">Ничего не найдено</div>
+ <div>Попробуйте изменить запрос поиска.</div>
+ </div>
+ </div>
+ `;
+          return;
+        }
+
+        ticketsList.innerHTML = filteredTickets
+          .map((ticket) => {
+            const status = getStatusMeta(ticket.status);
+            const messagesCount = ticket.messages?.length || 0;
+            const patientName = ticket.patientName || "Пациент";
+            const activeClass =
+              currentTicket === ticket.ticketId ? "active" : "";
+            const normalizedStatus = ticket.status || "new";
+
+            return `
+ <div class="ticket-item ${activeClass} status-${escapeHTML(normalizedStatus)}" onclick="selectTicket('${escapeHTML(ticket.ticketId)}')">
+ <div class="ticket-head">
+ <div>
+ <div class="ticket-title">Тикет #${escapeHTML(ticket.ticketId)}</div>
+ <div class="ticket-patient"> ${escapeHTML(patientName)}</div>
+ </div>
+ <span class="status-badge ${status.className}">${status.icon} ${status.text}</span>
+ </div>
+ <div class="ticket-info">
+ <div class="ticket-row"> <span>${formatDate(ticket.createdAt)}</span></div>
+ <div class="ticket-row"> <span>${messagesCount} сообщений</span></div>
+ ${ticket.operator ? `<div class="ticket-row"> <span>${escapeHTML(ticket.operator)}</span></div>` : ""}
+ </div>
+ </div>
+ `;
+          })
+          .join("");
+      }
+
+      function selectTicket(ticketId) {
+        currentTicket = ticketId;
+        setChatEnabled(true);
+        messageInput.focus();
+        renderTickets();
+        renderChatHeader(ticketId, operatorName, "in_progress");
+        chatMessages.innerHTML = `
+ <div class="empty-state">
+ <div class="empty-card">
+ <div class="empty-icon">⏳</div>
+ <div class="empty-title">Загружаем историю</div>
+ <div>Получаем сообщения пациента по выбранному тикету.</div>
+ </div>
+ </div>
+ `;
+        socket.emit("take_ticket", { ticketId });
+      }
+
+      function renderChatHeader(
+        ticketId,
+        operator = operatorName,
+        status = "in_progress",
+      ) {
+        const statusMeta = getStatusMeta(status);
+        chatHeader.innerHTML = `
+ <div class="chat-title">
+ <div class="chat-avatar"></div>
+ <div>
+ <h3>Тикет #${escapeHTML(ticketId)}</h3>
+ <div class="chat-subtitle">Оператор: ${escapeHTML(operator || "не назначен")}</div>
+ </div>
+ </div>
+ <div class="chat-actions">
+ <span class="status-badge ${statusMeta.className}">${statusMeta.icon} ${statusMeta.text}</span>
+ </div>
+ `;
+      }
+
+      function displayMessages(messages) {
+        const safeMessages = Array.isArray(messages) ? messages : [];
+
+        if (!safeMessages.length) {
+          chatMessages.innerHTML = `
+ <div class="empty-state">
+ <div class="empty-card">
+ <div class="empty-icon"></div>
+ <div class="empty-title">Сообщений пока нет</div>
+ <div>Можно отправить первое сообщение пациенту.</div>
+ </div>
+ </div>
+ `;
+          return;
+        }
+
+        chatMessages.innerHTML = safeMessages.map(renderMessage).join("");
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function renderMessage(msg) {
+        const role = msg.role === "operator" ? "operator" : "patient";
+        const author =
+          role === "patient"
+            ? " Пациент"
+            : ` Оператор ${msg.operatorName ? escapeHTML(msg.operatorName) : ""}`;
+
+        return `
+ <div class="message ${role}">
+ <div class="message-bubble">
+ <span class="message-author">${author}</span>
+ <div class="message-text">${escapeHTML(msg.text)}</div>
+ <div class="message-time">${formatTime(msg.timestamp)}</div>
+ </div>
+ </div>
+ `;
+      }
+
+      function addMessage(msg) {
+        const emptyState = chatMessages.querySelector(".empty-state");
+        if (emptyState) {
+          chatMessages.innerHTML = "";
+        }
+
+        chatMessages.insertAdjacentHTML("beforeend", renderMessage(msg));
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function sendMessage() {
+        const message = messageInput.value.trim();
+
+        if (!currentTicket) {
+          showToast("Сначала выберите тикет.", "error");
+          return;
+        }
+
+        if (!message) {
+          showToast("Введите текст сообщения.", "error");
+          return;
+        }
+
+        socket.emit("send_message", { ticketId: currentTicket, message });
+        messageInput.value = "";
+        inputCounter.textContent = "0 символов";
+        autoResizeTextarea(messageInput);
+      }
+
+      function closeTicket() {
+        if (!currentTicket) {
+          showToast("Сначала выберите тикет.", "error");
+          return;
+        }
+
+        const resolution = prompt(
+          "Введите решение или комментарий по обращению (можно оставить пустым):",
+        );
+        socket.emit("close_ticket", { ticketId: currentTicket, resolution });
+        currentTicket = null;
+        setChatEnabled(false);
+        renderTickets();
+      }
+
+      setInterval(() => {
+        if (
+          socket &&
+          socket.connected &&
+          appContainer.style.display === "flex"
+        ) {
+          socket.emit("refresh_tickets");
+        }
+      }, 5000);
+    </script>
+  </body>
+</html>

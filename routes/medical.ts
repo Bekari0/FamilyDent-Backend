@@ -7,7 +7,7 @@ import { MedicalRecord } from '../models/MedicalRecord';
 
 const router = express.Router();
 
-// --- Medical Card ---
+// мед карты
 router.get('/card/:patientId', authenticate, async (req: any, res) => {
  try {
  const { patientId } = req.params;
@@ -16,7 +16,6 @@ router.get('/card/:patientId', authenticate, async (req: any, res) => {
  return res.status(403).json({ error: 'Access denied' });
  }
  
- // Find by any ID format
  let card = await (MedicalCard as any).findOne({ 
  $or: [{ patientId: patientId }, { patientId: patientId.toString() }] 
  });
@@ -51,7 +50,7 @@ router.put('/card/:patientId', authenticate, authorize('admin', 'doctor'), async
  }
 });
 
-// --- Scans ---
+// сканы
 router.get('/scans/:patientId', authenticate, async (req: any, res) => {
  try {
  const { patientId } = req.params;
@@ -87,7 +86,7 @@ router.delete('/scans/:id', authenticate, authorize('admin', 'doctor'), async (r
  }
 });
 
-// --- Recommendations ---
+// рекомендации
 router.get('/recommendations/:patientId', authenticate, async (req: any, res) => {
  try {
  const { patientId } = req.params;
@@ -113,7 +112,7 @@ router.post('/recommendations', authenticate, authorize('admin', 'doctor'), asyn
  }
 });
 
-// --- Treatment History (reusing MedicalRecord model) ---
+// история болезни
 router.get('/history/:patientId', authenticate, async (req: any, res) => {
  try {
  const { patientId } = req.params;
